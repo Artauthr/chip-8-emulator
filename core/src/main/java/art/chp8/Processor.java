@@ -102,7 +102,7 @@ public class Processor {
                 handleCallSubroutine(nnnAddress);
                 break;
             case 0x1000:
-                handleJump(nnnAddress; // Jump to address
+                handleJump(nnnAddress); // Jump to address
                 break;
             case 0x6000:
                 handleSetRegister(vRegister, nnValue); // Set VX to NN
@@ -110,8 +110,6 @@ public class Processor {
             case 0x7000:
                 handleAddToRegister(vRegister, nnValue); // Add NN to VX
                 break;
-            default:
-                throw new Exception("Unknown opcode: " + Integer.toHexString(opCode));
         }
     }
 

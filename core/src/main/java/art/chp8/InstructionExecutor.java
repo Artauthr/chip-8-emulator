@@ -176,6 +176,8 @@ public class InstructionExecutor {
                 int bitMask = 1 << (Processor.SPRITE_WIDTH - 1 - bitIndex);
                 int pixelState = spriteByte & bitMask;
 
+                if (pixelState == 0) continue; // Skip if the sprite bit is not set
+
                 int xPos = (xStartPos + bitIndex) % Processor.SCREEN_WIDTH;
                 int yPos = (yStartPos + rowIndex) % Processor.SCREEN_HEIGHT;
 
@@ -183,10 +185,13 @@ public class InstructionExecutor {
                 pixels[xPos][yPos] ^= true;
 
                 if (originalState && !pixels[xPos][yPos]) {
-                    vRegisters[0xF] = 1;  // this pixel was lit, and became unlit, so we have a collision, update the collision register
+                    vRegisters[0xF] = 1; // Collision detected
                 }
             }
         }
     }
+
+
+
 
 }
