@@ -69,7 +69,7 @@ public enum Instruction {
     SNE_VALUE(0x4000, (processor, opcode) -> {
         byte[] vRegisters = processor.getVRegisters();
 
-        byte currentRegisterValue = vRegisters[Decoder.Vx(opcode)];
+        byte currentRegisterValue = (byte) (vRegisters[Decoder.Vx(opcode)] & 0xFF);
         if (currentRegisterValue != Decoder.kk(opcode)) {
             processor.skipNextInstruction();
         }
@@ -82,8 +82,8 @@ public enum Instruction {
     SE(0x5000, (processor, opcode) -> {
         byte[] vRegisters = processor.getVRegisters();
 
-        byte vx = vRegisters[Decoder.Vx(opcode)];
-        byte vy = vRegisters[Decoder.Vy(opcode)];
+        byte vx = (byte) (vRegisters[Decoder.Vx(opcode)] & 0xFF);
+        byte vy = (byte) (vRegisters[Decoder.Vy(opcode)] & 0xFF);
 
         if (vx == vy) processor.skipNextInstruction();
     }),
@@ -148,12 +148,13 @@ public enum Instruction {
             case 0x6:
                 // 8xy6 - Set Vx = Vx SHR 1.
                 vRegisters[0xF] = (byte) (vRegisters[Vx] & 0x01);
-                vRegisters[Vx] = (byte) ((vRegisters[Vx] & 0xFF) >> 1);
+                vRegisters[Vx] = (byte) ((vRegisters[Vx] & 0xFF) >>> 1);
                 break;
             case 0x7:
                 // 8xy7 - Set Vx = Vy - Vx, set VF = NOT borrow.
-                vRegisters[0xF] = (byte) ((vRegisters[Vy] & 0xFF) > (vRegisters[Vx] & 0xFF) ? 1 : 0);
-                vRegisters[Vx] = (byte) ((vRegisters[Vy] & 0xFF) - (vRegisters[Vx] & 0xFF));
+                int result = (vRegisters[Vy] & 0xFF) - (vRegisters[Vx] & 0xFF);
+                vRegisters[0xF] = (byte) (result > 0 ? 1 : 0);
+                vRegisters[Vx] = (byte) result;
                 break;
             case 0xE:
                 // 8xyE - Set Vx = Vx SHL 1.
@@ -171,8 +172,8 @@ public enum Instruction {
      */
     SNE_VX_VY(0x9000, (processor, opcode) -> {
         byte[] vRegisters = processor.getVRegisters();
-        int Vx = Decoder.Vx(opcode);
-        int Vy = Decoder.Vy(opcode);
+        int Vx = Decoder.Vx(opcode) & 0xFF;
+        int Vy = Decoder.Vy(opcode) & 0xFF;
 
         if (vRegisters[Vx] == vRegisters[Vy]) processor.skipNextInstruction();
     }),
@@ -189,7 +190,7 @@ public enum Instruction {
      */
     BNNN(0xB000, (processor, opcode) -> {
         byte[] vRegisters = processor.getVRegisters();
-        processor.setProgramCounter(vRegisters[0x0] + Decoder.nnn(opcode));
+        processor.setProgramCounter((vRegisters[0x0] & 0xFF) + Decoder.nnn(opcode));
     }),
 
     /*
@@ -198,7 +199,7 @@ public enum Instruction {
      */
     CXKK(0xC000, (processor, opcode) -> {
         int random = MathUtils.random(0, 255);
-        int kk = Decoder.kk(opcode);
+        int kk = Decoder.kk(opcode) & 0xFF;
 
         int Vx = Decoder.Vx(opcode);
         byte[] vRegisters = processor.getVRegisters();
@@ -291,7 +292,7 @@ public enum Instruction {
                 for (int key : Keypad.keys) {
                     if (keypad.isKeyDown(key)) {
                         vRegisters[Vx] = (byte) key;
-                        break;
+                        return;
                     }
                 }
                 // we "wait" by decrementing PC so this instruction will be executed until something is pressed
@@ -305,7 +306,7 @@ public enum Instruction {
                 processor.setST(vRegisters[Vx]);
                 break;
             case 0x1E: // Fx1E - ADD I, Vx․ Set I = I + Vx.
-                processor.setIndexRegister(indexRegister + vRegisters[Vx]);
+                processor.setIndexRegister(indexRegister + (vRegisters[Vx] & 0xFF));
                 break;
             case 0x29: // Fx29 - LD F, Vx․ Set I = location of sprite for digit Vx.
                 byte digit = vRegisters[Vx];
