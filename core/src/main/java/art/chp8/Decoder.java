@@ -1,6 +1,6 @@
 package art.chp8;
 
-public class InstructionDecoder {
+public class Decoder {
     // the highest 4 bits of the instruction that indicate the operation type
     public static int op (int opcode) {
         return (opcode & 0xF000);

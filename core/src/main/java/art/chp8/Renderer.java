@@ -35,7 +35,7 @@ public class Renderer implements Disposable {
         viewport.setUnitsPerPixel(1);
     }
 
-    public void drawGrid(boolean[][] grid) {
+    public void drawGrid (boolean[][] grid) {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         shapeRenderer.setProjectionMatrix(viewport.getCamera().combined);

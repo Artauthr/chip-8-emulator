@@ -16,12 +16,14 @@ public class Emulator extends ApplicationAdapter {
         processor = new Processor();
     }
 
+    private static final float UPDATE_MS = 1 / 60f;
+
     @Override
     public void render() {
         ScreenUtils.clear(0f, 0f, 0f, 1f);
 
         counter += Gdx.graphics.getDeltaTime();
-        if (counter >= 0.001f) {
+        if (counter >= 0) {
             processor.tick();
             counter = 0;
         }

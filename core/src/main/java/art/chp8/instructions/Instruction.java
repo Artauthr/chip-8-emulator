@@ -1,69 +1,365 @@
 package art.chp8.instructions;
 
+import art.chp8.Decoder;
+import art.chp8.Keypad;
+import art.chp8.Processor;
+import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.IntMap;
+
+import java.util.Arrays;
+
 public enum Instruction {
-    // Display and flow control
-    CLS(0x00E0),           // Clear the display
-    RET(0x00EE),           // Return from subroutine
-    JMP_ADDR(0x1000),      // Jump to address NNN
-    CALL_ADDR(0x2000),     // Call subroutine at NNN
+    /*
+    00EX - System
+    */
+    SYS(0x0000, (processor, opcode) -> {
+        int n = Decoder.n(opcode);
 
-    // Conditional branches
-    SE_VX_BYTE(0x3000),    // Skip next instruction if VX == NN
-    SNE_VX_BYTE(0x4000),   // Skip next instruction if VX != NN
-    SE_VX_VY(0x5000),      // Skip next instruction if VX == VY
+        switch (n) {
+            case 0x0: // 00E0 - CLS. Clear the display.
+                boolean[][] pixels = processor.getPixels();
 
-    // Constant manipulation
-    LD_VX_BYTE(0x6000),    // Load NN into VX
-    ADD_VX_BYTE(0x7000),   // Add NN to VX (carry flag is not changed)
+                for (boolean[] row : pixels) {
+                    Arrays.fill(row, false);
+                }
+                break;
+            case 0xE: // 00EE - RET. Return from a subroutine.
+                int pop = processor.popStack();
+                processor.setProgramCounter(pop);
+                break;
+        }
+    }),
 
-    // Bitwise operations
-    LD_VX_VY(0x8000),      // Load the value of VY into VX
-    OR_VX_VY(0x8001),      // Set VX to VX | VY (bitwise OR)
-    AND_VX_VY(0x8002),     // Set VX to VX & VY (bitwise AND)
-    XOR_VX_VY(0x8003),     // Set VX to VX ^ VY (bitwise XOR)
-    ADD_VX_VY(0x8004),     // Add VY to VX, set VF = carry
-    SUB_VX_VY(0x8005),     // Subtract VY from VX, set VF = NOT borrow
-    SHR_VX(0x8006),        // Shift VX right by 1, VF = least significant bit of VX
-    SUBN_VX_VY(0x8007),    // Set VX = VY - VX, set VF = NOT borrow
-    SHL_VX(0x800E),        // Shift VX left by 1, VF = most significant bit of VX
+    /*
+    1nnn - JP addr
+    Jump to location nnn.
+    */
+    JP(0x1000, (processor, opcode) -> {
+        processor.setProgramCounter(Decoder.nnn(opcode));
+    }),
 
-    // Conditional skips
-    SNE_VX_VY(0x9000),     // Skip next instruction if VX != VY
+    /*
+    2nnn - CALL addr
+    Call subroutine at nnn.
+     */
+    CALL(0x2000, (processor, opcode) -> {
+        int currentPc = processor.getProgramCounter();
+        processor.pushStack(currentPc);
+        processor.setProgramCounter(Decoder.nnn(opcode));
+    }),
 
-    // Address manipulation
-    LD_I_ADDR(0xA000),     // Set I = NNN
-    JP_V0_ADDR(0xB000),    // Jump to address NNN + V0
+    /*
+    3xkk - SE Vx, byte
+    Skip next instruction if Vx = kk.
+    */
+    SE_VALUE(0x3000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        int vxValue = vRegisters[Decoder.Vx(opcode)] & 0xFF; // Unsigned value
+        int kk = Decoder.kk(opcode);
 
-    // Random
-    RND_VX_BYTE(0xC000),   // Set VX = random byte AND NN
+        if (vxValue == kk) {
+            processor.skipNextInstruction();
+        }
+    }),
 
-    // Drawing
-    DRW_VX_VY_NIBBLE(0xD000), // Display N-byte sprite starting at memory location I at (VX, VY), set VF = collision
 
-    // Key operations
-    SKP_VX(0xE09E),        // Skip next instruction if key with the value of VX is pressed
-    SKNP_VX(0xE0A1),       // Skip next instruction if key with the value of VX is not pressed
+    /*
+    4xkk - SNE Vx, byte
+    Skip next instruction if Vx != kk.
+    */
+    SNE_VALUE(0x4000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
 
-    // Timers and sound
-    LD_VX_DT(0xF007),      // Set VX = delay timer value
-    LD_VX_KEY(0xF00A),     // Wait for a key press, store the value of the key in VX
-    LD_DT_VX(0xF015),      // Set delay timer = VX
-    LD_ST_VX(0xF018),      // Set sound timer = VX
+        byte currentRegisterValue = vRegisters[Decoder.Vx(opcode)];
+        if (currentRegisterValue != Decoder.kk(opcode)) {
+            processor.skipNextInstruction();
+        }
+    }),
 
-    // Memory
-    ADD_I_VX(0xF01E),      // Set I = I + VX
-    LD_F_VX(0xF029),       // Set I = location of sprite for digit VX
-    LD_B_VX(0xF033),       // Store BCD representation of VX in memory locations I, I+1, and I+2
-    LD_I_VX(0xF055),       // Store registers V0 through VX in memory starting at location I
-    LD_VX_I(0xF065);       // Read registers V0 through VX from memory starting at location I
+    /*
+    5xy0 - SE Vx, Vy
+    Skip next instruction if Vx = Vy.
+    */
+    SE(0x5000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
 
-    private final int code;
+        byte vx = vRegisters[Decoder.Vx(opcode)];
+        byte vy = vRegisters[Decoder.Vy(opcode)];
 
-    Instruction(int code) {
-        this.code = code;
+        if (vx == vy) processor.skipNextInstruction();
+    }),
+
+    /*
+    6xkk - LD Vx, byte
+    Set Vx = kk.
+    */
+    LD_VALUE(0x6000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        vRegisters[Decoder.Vx(opcode)] = (byte) Decoder.kk(opcode);
+    }),
+
+    /*
+    7xkk - ADD Vx, byte
+    Set Vx = Vx + kk.
+     */
+    ADD_VALUE(0x7000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        byte currentValue = vRegisters[Decoder.Vx(opcode)];
+        vRegisters[Decoder.Vx(opcode)] = (byte) (currentValue + Decoder.kk(opcode));
+    }),
+
+    /*
+    LD Vx, Vy
+     */
+    LD(0x8000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+
+        int Vx = Decoder.Vx(opcode);
+        int Vy = Decoder.Vy(opcode);
+        int n = Decoder.n(opcode);
+
+        switch (n) {
+            case 0:
+                // 8xy0 - Set Vx = Vy.
+                vRegisters[Vx] = vRegisters[Vy];
+                break;
+            case 0x1:
+                // 8xy1 - Set Vx = Vx OR Vy.
+                vRegisters[Vx] = (byte) (vRegisters[Vx] | vRegisters[Vy]);
+                break;
+            case 0x2:
+                // 8xy2 - Set Vx = Vx AND Vy.
+                vRegisters[Vx] = (byte) (vRegisters[Vx] & vRegisters[Vy]);
+                break;
+            case 0x3:
+                // 8xy3 - Set Vx = Vx XOR Vy.
+                vRegisters[Vx] = (byte) (vRegisters[Vx] ^ vRegisters[Vy]);
+                break;
+            case 0x4:
+                // 8xy4 - Set Vx = Vx + Vy, set VF = carry.
+                int additionResult = (vRegisters[Vx] & 0xFF) + (vRegisters[Vy] & 0xFF);
+                vRegisters[0xF] = (byte) (additionResult > 255 ? 1 : 0);
+                vRegisters[Vx] = (byte) (additionResult & 0xFF);
+                break;
+            case 0x5:
+                // 8xy5 - Set Vx = Vx - Vy, set VF = NOT borrow.
+                vRegisters[0xF] = (byte) ((vRegisters[Vx] & 0xFF) > (vRegisters[Vy] & 0xFF) ? 1 : 0);
+                vRegisters[Vx] = (byte) ((vRegisters[Vx] & 0xFF) - (vRegisters[Vy] & 0xFF));
+                break;
+            case 0x6:
+                // 8xy6 - Set Vx = Vx SHR 1.
+                vRegisters[0xF] = (byte) (vRegisters[Vx] & 0x01);
+                vRegisters[Vx] = (byte) ((vRegisters[Vx] & 0xFF) >> 1);
+                break;
+            case 0x7:
+                // 8xy7 - Set Vx = Vy - Vx, set VF = NOT borrow.
+                vRegisters[0xF] = (byte) ((vRegisters[Vy] & 0xFF) > (vRegisters[Vx] & 0xFF) ? 1 : 0);
+                vRegisters[Vx] = (byte) ((vRegisters[Vy] & 0xFF) - (vRegisters[Vx] & 0xFF));
+                break;
+            case 0xE:
+                // 8xyE - Set Vx = Vx SHL 1.
+                vRegisters[0xF] = (byte) ((vRegisters[Vx] & 0xFF) >> 7);
+                vRegisters[Vx] = (byte) ((vRegisters[Vx] & 0xFF) << 1);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown 8XYN operation: 0x" + Integer.toHexString(n));
+        }
+    }),
+
+    /*
+    9xy0 - SNE Vx, Vy
+    Skip next instruction if Vx != Vy.
+     */
+    SNE_VX_VY(0x9000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        int Vx = Decoder.Vx(opcode);
+        int Vy = Decoder.Vy(opcode);
+
+        if (vRegisters[Vx] == vRegisters[Vy]) processor.skipNextInstruction();
+    }),
+
+    /*
+    ANNN - LD I, addr
+    Set I = nnn.
+    */
+    ANNN(0xA000, (processor, opcode) -> {
+        processor.setIndexRegister(Decoder.nnn(opcode));
+    }),
+
+    /*
+    Bnnn - JP V0, addr
+    Jump to location nnn + V0.
+     */
+    BNNN(0xB000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        processor.setProgramCounter(vRegisters[0x0] + Decoder.nnn(opcode));
+    }),
+
+    /*
+    Cxkk - RND Vx, byte
+    Set Vx = random byte AND kk.
+     */
+    CXKK(0xC000, (processor, opcode) -> {
+        int random = MathUtils.random(0, 255);
+        int kk = Decoder.kk(opcode);
+
+        int Vx = Decoder.Vx(opcode);
+        byte[] vRegisters = processor.getVRegisters();
+
+        vRegisters[Vx] = (byte) (random & kk);
+    }),
+
+    /*
+    Dxyn - DRW Vx, Vy, nibble
+    Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+    */
+    DXYN(0xD000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        byte[] memory = processor.getMemory();
+
+        boolean[][] pixels = processor.getPixels();
+        int indexRegister = processor.getIndexRegister();
+
+        // Get positions and wrap them
+        int xStartPos = vRegisters[Decoder.Vx(opcode)] % Processor.SCREEN_WIDTH;
+        int yStartPos = vRegisters[Decoder.Vy(opcode)] % Processor.SCREEN_HEIGHT;
+
+        vRegisters[0xF] = 0; // Reset collision register, should turn to 1 if any collisions happen during drawing
+
+        // Each sprite is 8 pixels wide and N pixels tall.
+        for (int rowIndex = 0; rowIndex < Decoder.n(opcode); rowIndex++) {
+            byte spriteByte = memory[indexRegister + rowIndex];
+
+            for (int bitIndex = 0; bitIndex < Processor.SPRITE_WIDTH; bitIndex++) {
+                int bitMask = 1 << (Processor.SPRITE_WIDTH - 1 - bitIndex);
+                int pixelState = spriteByte & bitMask;
+
+                if (pixelState == 0) continue; // Skip if the sprite bit is not set
+
+                int xPos = (xStartPos + bitIndex) % Processor.SCREEN_WIDTH;
+                int yPos = (yStartPos + rowIndex) % Processor.SCREEN_HEIGHT;
+
+                boolean originalState = pixels[xPos][yPos];
+                pixels[xPos][yPos] ^= true;
+
+                if (originalState && !pixels[xPos][yPos]) {
+                    vRegisters[0xF] = 1; // Collision detected
+                }
+            }
+        }
+    }),
+
+    /*
+    Ex - Keyboard
+     */
+    EX(0xE000, (processor, opcode) -> {
+        byte[] vRegisters = processor.getVRegisters();
+        byte key = vRegisters[Decoder.Vx(opcode)];
+
+        int type = Decoder.kk(opcode);
+        switch (type) {
+            case 0x9E: // Ex9E - SKP Vx. Skip next instruction if key with the value of Vx is pressed.
+                if (processor.isKeyDown(key)) processor.skipNextInstruction();
+                break;
+            case 0xA1: // ExA1 - SKNP Vx. Skip next instruction if key with the value of Vx is not pressed.
+                if (!processor.isKeyDown(key)) processor.skipNextInstruction();
+                break;
+        }
+    }),
+
+    /*
+    FX - timers, internal fonts
+     */
+    FX(0xF000, (processor, opcode) -> {
+        int Vx = Decoder.Vx(opcode);
+        byte[] vRegisters = processor.getVRegisters();
+        int indexRegister = processor.getIndexRegister();
+
+        int type = Decoder.kk(opcode);
+        switch (type) {
+            case 0x07: // Fx07 - LD Vx, DT. Set Vx = delay timer value.
+                vRegisters[Vx] = (byte) (processor.getDT() & 0xFF);
+                break;
+            case 0x0A: // Fx0A - LD Vx, K. Wait for a key press, store the value of the key in Vx.
+                Keypad keypad = processor.getKeypad();
+                for (int key : Keypad.keys) {
+                    if (keypad.isKeyDown(key)) {
+                        vRegisters[Vx] = (byte) key;
+                        break;
+                    }
+                }
+                // we "wait" by decrementing PC so this instruction will be executed until something is pressed
+                int currentPc = processor.getProgramCounter();
+                processor.setProgramCounter(currentPc - 2);
+                break;
+            case 0x15: // Fx15 - LD DT, Vx. Set delay timer = Vx.
+                processor.setDT(vRegisters[Vx]);
+                break;
+            case 0x18: // Fx18 - LD ST, Vx․ Set sound timer = Vx
+                processor.setST(vRegisters[Vx]);
+                break;
+            case 0x1E: // Fx1E - ADD I, Vx․ Set I = I + Vx.
+                processor.setIndexRegister(indexRegister + vRegisters[Vx]);
+                break;
+            case 0x29: // Fx29 - LD F, Vx․ Set I = location of sprite for digit Vx.
+                byte digit = vRegisters[Vx];
+                processor.setIndexRegister(Processor.FONT_LOAD_START_ADDRESS + (digit * Processor.FONT_SIZE_BYTES));
+                break;
+            case 0x33: // Fx33 - LD B, Vx. Store BCD representation of Vx in memory locations I, I+1, and I+2.
+                int value = vRegisters[Vx] & 0xFF;
+
+                processor.writeMemory(indexRegister + 2, value % 10);
+                value /= 10;
+
+                processor.writeMemory(indexRegister + 1, value % 10);
+                value /= 10;
+
+                processor.writeMemory(indexRegister, value % 10);
+                break;
+            case 0x55:
+                // Fx55 - LD [I], Vx. Store registers V0 through Vx in memory starting at location I.
+                for (int i = 0; i <= Vx; i++) {
+                    processor.writeMemory(indexRegister + i, vRegisters[i]);
+                }
+                break;
+            case 0x65:
+                // Fx65 - LD Vx, [I]. Read registers V0 through Vx from memory starting at location I.
+                for (int i = 0; i <= Vx; i++) {
+                    vRegisters[i] = processor.readMemory(indexRegister + i);
+                }
+                break;
+        }
+    })
+    ;
+
+    private final int address;
+    private final InstructionExecutor executor;
+
+    Instruction(int address, InstructionExecutor executor) {
+        this.address = address;
+        this.executor = executor;
     }
 
-    public int getCode() {
-        return code;
+    public static final IntMap<Instruction> codeMap = new IntMap<>();
+
+    static {
+        for (Instruction value : Instruction.values()) {
+            codeMap.put(value.address, value);
+        }
+    }
+
+    public static Instruction fromOpcode (int opcode) {
+        int op = Decoder.op(opcode);
+        Instruction instruction = codeMap.get(op);
+
+        if (instruction == null) {
+            throw new RuntimeException("Unknown opcode " + opcode);
+        }
+
+        return instruction;
+    }
+
+    public void execute (Processor processor, int opcode) {
+        executor.execute(processor, opcode);
     }
 }

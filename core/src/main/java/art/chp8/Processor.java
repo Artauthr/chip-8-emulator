@@ -1,6 +1,6 @@
 package art.chp8;
 
-import art.chp8.instructions.InstructionType;
+import art.chp8.instructions.Instruction;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.GdxRuntimeException;
@@ -8,6 +8,9 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 
 public class Processor {
     private final static short START_ADDRESS = 0x200;
+
+    public static final int FONT_LOAD_START_ADDRESS = 0x50;
+    public static final int FONT_SIZE_BYTES = 5;
 
     public static final int SCREEN_WIDTH = 64;
     public static final int SCREEN_HEIGHT = 32;
@@ -53,19 +56,29 @@ public class Processor {
     The delay timer is active whenever the delay timer register (DT) is non-zero.
     This timer does nothing more than subtract 1 from the value of DT at a rate of 60Hz. When DT reaches 0, it deactivates.
      */
-    private byte DT;
+    private int DT;
 
 
     /*The sound timer is active whenever the sound timer register (ST) is non-zero.
      This timer also decrements at a rate of 60Hz, however, as long as ST's value is greater than zero, the Chip-8 buzzer will sound. When ST reaches zero, the sound timer deactivates.
      */
-    private byte ST;
+    private int ST;
 
+    private final Keypad keypad;
+
+    public Keypad getKeypad () {
+        return this.keypad;
+    }
 
     public Processor() {
+        keypad = new Keypad();
         programCounter = START_ADDRESS;
         loadInternalFonts();
-        loadROM("IBM");
+        loadROM("tetris");
+    }
+
+    public boolean isKeyDown (int keycode) {
+        return keypad.isKeyDown(keycode);
     }
 
     public void tick () {
@@ -73,10 +86,18 @@ public class Processor {
         int currentInstruction = fetchCurrentInstruction();
 
         // DECODE
-        InstructionType instruction = InstructionType.fromOpcode(currentInstruction);
+        Instruction instruction = Instruction.fromOpcode(currentInstruction);
 
         // EXECUTE
         instruction.execute(this, currentInstruction);
+
+        if (DT > 0) {
+            DT--;
+        }
+
+        if (ST > 0) {
+            ST--;
+        }
     }
 
     public void pushStack (int value) {
@@ -105,8 +126,6 @@ public class Processor {
 
         return combinedOpcode;
     }
-
-    private static final int FONT_LOAD_START_ADDRESS = 0x50;
 
     private void loadInternalFonts () {
         for (int i = 0; i < fonts.length; i++) {
@@ -168,6 +187,14 @@ public class Processor {
         return memory;
     }
 
+    public byte readMemory (int address) {
+        return memory[address];
+    }
+
+    public void writeMemory (int address, int value) {
+        memory[address] = (byte) value;
+    }
+
     public byte[] getVRegisters() {
         return vRegisters;
     }
@@ -180,19 +207,13 @@ public class Processor {
         return programCounter;
     }
 
-
-    public byte getST() {
-        return ST;
-    }
-
     public void setST(byte ST) {
         this.ST = ST;
     }
 
-    public byte getDT() {
+    public int getDT() {
         return DT;
     }
-
 
     public void setDT(byte DT) {
         this.DT = DT;
