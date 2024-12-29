@@ -73,9 +73,7 @@ public class Processor {
     public Processor() {
         programCounter = START_ADDRESS;
         loadInternalFonts();
-
         keypad = new Keypad();
-        loadROM("tetris");
     }
 
     public void tick () {
@@ -153,7 +151,7 @@ public class Processor {
      *
      * @param name Name of file without file extension located in assets roms folder
      */
-    private void loadROM (String name) {
+    public void loadROM (String name) {
         FileHandle romFile = Gdx.files.internal("roms/" + name + ".ch8");
 
         if (!romFile.exists()) {
@@ -180,15 +178,17 @@ public class Processor {
         return pixels;
     }
 
-    public byte[] getMemory() {
-        return memory;
-    }
-
     public byte readMemory (int address) {
+        if (address < 0 || address > memory.length - 1) {
+            throw new UnsupportedOperationException("Memory address out of bounds");
+        }
         return memory[address];
     }
 
     public void writeMemory (int address, int value) {
+        if (address < 0 || address > memory.length - 1) {
+            throw new UnsupportedOperationException("Memory address out of bounds");
+        }
         memory[address] = (byte) value;
     }
 

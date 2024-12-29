@@ -1,6 +1,5 @@
 package art.chp8.instructions;
 
-import art.chp8.Decoder;
 import art.chp8.Keypad;
 import art.chp8.Processor;
 import com.badlogic.gdx.math.MathUtils;
@@ -36,9 +35,7 @@ public enum Instruction {
     1nnn - JP addr
     Jump to location nnn.
     */
-    JP(0x1000, (processor, opcode) -> {
-        processor.setProgramCounter(Decoder.nnn(opcode));
-    }),
+    JP(0x1000, (processor, opcode) -> processor.setProgramCounter(Decoder.nnn(opcode))),
 
     /*
     2nnn - CALL addr
@@ -184,9 +181,7 @@ public enum Instruction {
     ANNN - LD I, addr
     Set I = nnn.
     */
-    ANNN(0xA000, (processor, opcode) -> {
-        processor.setIndexRegister(Decoder.nnn(opcode));
-    }),
+    ANNN(0xA000, (processor, opcode) -> processor.setIndexRegister(Decoder.nnn(opcode))),
 
     /*
     Bnnn - JP V0, addr
@@ -217,29 +212,34 @@ public enum Instruction {
     */
     DXYN(0xD000, (processor, opcode) -> {
         byte[] vRegisters = processor.getVRegisters();
-        byte[] memory = processor.getMemory();
 
         boolean[][] pixels = processor.getPixels();
         int indexRegister = processor.getIndexRegister();
 
         // Get positions and wrap them
-        int xStartPos = vRegisters[Decoder.Vx(opcode)] % Processor.SCREEN_WIDTH;
-        int yStartPos = vRegisters[Decoder.Vy(opcode)] % Processor.SCREEN_HEIGHT;
+        int xStartPos = vRegisters[Decoder.Vx(opcode)] & 0xFF; // Ensure unsigned
+        int yStartPos = vRegisters[Decoder.Vy(opcode)] & 0xFF; // Ensure unsigned
 
-        vRegisters[0xF] = 0; // Reset collision register, should turn to 1 if any collisions happen during drawing
+        vRegisters[0xF] = 0; // Reset collision register
 
-        // Each sprite is 8 pixels wide and N pixels tall.
-        for (int rowIndex = 0; rowIndex < Decoder.n(opcode); rowIndex++) {
-            byte spriteByte = memory[indexRegister + rowIndex];
+        // Ensure sprite height (N) is valid
+        int n = Decoder.n(opcode);
+        if (n < 0 || n > 15) {
+            throw new IllegalArgumentException("Invalid sprite height: " + n);
+        }
+
+        for (int rowIndex = 0; rowIndex < n; rowIndex++) {
+            int memoryAddress = indexRegister + rowIndex;
+            byte spriteByte = processor.readMemory(memoryAddress);
+
+            int yPos = (yStartPos + rowIndex) % Processor.SCREEN_HEIGHT;
 
             for (int bitIndex = 0; bitIndex < Processor.SPRITE_WIDTH; bitIndex++) {
                 int bitMask = 1 << (Processor.SPRITE_WIDTH - 1 - bitIndex);
                 int pixelState = spriteByte & bitMask;
 
-                if (pixelState == 0) continue; // Skip if the sprite bit is not set
-
+                if (pixelState == 0) continue;
                 int xPos = (xStartPos + bitIndex) % Processor.SCREEN_WIDTH;
-                int yPos = (yStartPos + rowIndex) % Processor.SCREEN_HEIGHT;
 
                 boolean originalState = pixels[xPos][yPos];
                 pixels[xPos][yPos] ^= true;
@@ -250,6 +250,7 @@ public enum Instruction {
             }
         }
     }),
+
 
     /*
     Ex - Keyboard

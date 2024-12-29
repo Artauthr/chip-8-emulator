@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<config>
+    <romName>ibm_logo_test</romName> <!--Name of .ch8 file located in assets/roms without extension -->
+    <emulationSpeed>2</emulationSpeed> <!--How many CPU instructions will be executed in one iteration-->
+</config>

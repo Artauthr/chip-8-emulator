@@ -18,29 +18,29 @@ public class Keypad extends InputAdapter {
     };
 
     public Keypad () {
-        initMapping();
         Gdx.input.setInputProcessor(this);
+        initMapping();
     }
 
     private void initMapping () {
-        keyMapping.put(Input.Keys.NUM_1, keys[0x0]);
-        keyMapping.put(Input.Keys.NUM_2, keys[0x1]);
-        keyMapping.put(Input.Keys.NUM_3, keys[0x2]);
-        keyMapping.put(Input.Keys.NUM_4, keys[0x3]);
+        keyMapping.put(Input.Keys.NUM_1, keys[0x1]);
+        keyMapping.put(Input.Keys.NUM_2, keys[0x2]);
+        keyMapping.put(Input.Keys.NUM_3, keys[0x3]);
+        keyMapping.put(Input.Keys.NUM_4, keys[0xC]);
 
         keyMapping.put(Input.Keys.Q, keys[0x4]);
         keyMapping.put(Input.Keys.W, keys[0x5]);
         keyMapping.put(Input.Keys.E, keys[0x6]);
-        keyMapping.put(Input.Keys.R, keys[0x7]);
+        keyMapping.put(Input.Keys.R, keys[0xD]);
 
-        keyMapping.put(Input.Keys.A, keys[0x8]);
-        keyMapping.put(Input.Keys.S, keys[0x9]);
-        keyMapping.put(Input.Keys.D, keys[0xA]);
-        keyMapping.put(Input.Keys.F, keys[0xB]);
+        keyMapping.put(Input.Keys.A, keys[0x7]);
+        keyMapping.put(Input.Keys.S, keys[0x8]);
+        keyMapping.put(Input.Keys.D, keys[0x9]);
+        keyMapping.put(Input.Keys.F, keys[0xE]);
 
-        keyMapping.put(Input.Keys.Z, keys[0xC]);
-        keyMapping.put(Input.Keys.X, keys[0xD]);
-        keyMapping.put(Input.Keys.C, keys[0xE]);
+        keyMapping.put(Input.Keys.Z, keys[0xA]);
+        keyMapping.put(Input.Keys.X, keys[0x0]);
+        keyMapping.put(Input.Keys.C, keys[0xB]);
         keyMapping.put(Input.Keys.V, keys[0xF]);
     }
 
@@ -61,7 +61,6 @@ public class Keypad extends InputAdapter {
             return true;
         }
         return super.keyUp(keycode);
-
     }
 
     public boolean isKeyDown (int key) {

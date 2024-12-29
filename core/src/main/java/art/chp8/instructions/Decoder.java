@@ -1,4 +1,4 @@
-package art.chp8;
+package art.chp8.instructions;
 
 public class Decoder {
     // the highest 4 bits of the instruction that indicate the operation type
