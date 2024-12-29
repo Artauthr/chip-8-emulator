@@ -161,7 +161,7 @@ public enum Instruction {
                 vRegisters[Vx] = (byte) ((vRegisters[Vx] & 0xFF) << 1);
                 break;
             default:
-                throw new IllegalArgumentException("Unknown 8XYN operation: 0x" + Integer.toHexString(n));
+                throw new UnsupportedOperationException("Operation not found: " + Integer.toHexString(opcode));
         }
     }),
 
