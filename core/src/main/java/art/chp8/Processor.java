@@ -1,6 +1,9 @@
 package art.chp8;
 
-import java.util.Arrays;
+import art.chp8.instructions.InstructionType;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.utils.GdxRuntimeException;
 
 
 public class Processor {
@@ -34,7 +37,7 @@ public class Processor {
     /*
      Program Counter: A 16-bit register for tracking the current instruction.
      */
-    private int programCounter = START_ADDRESS;
+    private int programCounter;
 
     /*
      The stack for subroutine return addresses (max 16 entries)
@@ -46,15 +49,44 @@ public class Processor {
      */
     private int stackPointer = 0;
 
+    /*
+    The delay timer is active whenever the delay timer register (DT) is non-zero.
+    This timer does nothing more than subtract 1 from the value of DT at a rate of 60Hz. When DT reaches 0, it deactivates.
+     */
+    private byte DT;
 
-    public void stackPush (int value) {
+
+    /*The sound timer is active whenever the sound timer register (ST) is non-zero.
+     This timer also decrements at a rate of 60Hz, however, as long as ST's value is greater than zero, the Chip-8 buzzer will sound. When ST reaches zero, the sound timer deactivates.
+     */
+    private byte ST;
+
+
+    public Processor() {
+        programCounter = START_ADDRESS;
+        loadInternalFonts();
+        loadROM("IBM");
+    }
+
+    public void tick () {
+        // FETCH
+        int currentInstruction = fetchCurrentInstruction();
+
+        // DECODE
+        InstructionType instruction = InstructionType.fromOpcode(currentInstruction);
+
+        // EXECUTE
+        instruction.execute(this, currentInstruction);
+    }
+
+    public void pushStack (int value) {
         if (stackPointer >= stack.length) {
             throw new IllegalStateException("Stack overflow");
         }
         stack[stackPointer++] = value;
     }
 
-    public int stackPop () {
+    public int popStack () {
         if (stackPointer <= 0) {
             throw new IllegalStateException("Stack underflow");
         }
@@ -74,75 +106,54 @@ public class Processor {
         return combinedOpcode;
     }
 
+    private static final int FONT_LOAD_START_ADDRESS = 0x50;
 
-    /*
-    F: Instruction type (first 4 bits).
-    X: Register (next 4 bits).
-    NN: Immediate value (last 8 bits).
-    Sometimes, the last nibble (N) or 12 bits (NNN) represent additional parameters.
+    private void loadInternalFonts () {
+        for (int i = 0; i < fonts.length; i++) {
+            memory[FONT_LOAD_START_ADDRESS + i] = (byte) fonts[i];
+        }
+    }
+
+    private final int[] fonts = {
+            0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+            0x20, 0x60, 0x20, 0x20, 0x70, // 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+            0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+
+    /***
+     *
+     * @param name Name of file without file extension located in assets roms folder
      */
-    private void decodeInstruction (int opCode) {
-        int opType = opCode & 0xF000;
+    private void loadROM (String name) {
+        FileHandle romFile = Gdx.files.internal("roms/" + name + ".ch8");
 
-        int vRegister = (opCode & 0x0F00) >> 8;
-        int nnValue = opCode & 0x00FF;
-        int nnnAddress = opCode & 0x0FFF;
+        if (!romFile.exists()) {
+            throw new GdxRuntimeException("Could not find ROM file: " + romFile.path());
+        }
 
-
-
-        switch (opType) {
-            case 0x0000:
-                if (opCode == 0x00E0) {
-                    handleScreenClear();
-                } else if (opCode == 0x00EE) {
-                    handleReturnFromSubroutine();
-                }
-                break;
-            case 0x2000:
-                handleCallSubroutine(nnnAddress);
-                break;
-            case 0x1000:
-                handleJump(nnnAddress); // Jump to address
-                break;
-            case 0x6000:
-                handleSetRegister(vRegister, nnValue); // Set VX to NN
-                break;
-            case 0x7000:
-                handleAddToRegister(vRegister, nnValue); // Add NN to VX
-                break;
+        try {
+            byte[] romBytes = romFile.readBytes();
+            System.arraycopy(romBytes, 0, memory, START_ADDRESS, romBytes.length);
+        } catch (Exception e) {
+            throw new GdxRuntimeException("Failed to load ROM: " + romFile.path(), e);
         }
     }
 
-    private void handleCallSubroutine (int callAddrNNN) {
-        stackPush(programCounter);
-        programCounter = callAddrNNN;
-    }
-
-    private void handleReturnFromSubroutine () {
-        programCounter = stackPop();
-    }
-
-    private void handleScreenClear () {
-        for (boolean[] row : pixels) {
-            Arrays.fill(row, false);
-        }
-    }
-
-    private void handleJump (int jumpAddress) {
-        this.programCounter = jumpAddress;
-    }
-
-    private void handleSetRegister (int iRegister, int nn) {
-        vRegisters[iRegister] = (byte) nn;
-    }
-
-    private void handleAddToRegister (int iRegister, int nn) {
-        byte currentValue = vRegisters[iRegister];
-        vRegisters[iRegister] = (byte) (currentValue + nn);
-    }
-
-    public void incrementProgramCounter (int amount) {
-        this.programCounter += amount;
+    public void skipNextInstruction () {
+        this.programCounter += 2;
     }
 
     public void setIndexRegister (int value) {
@@ -157,7 +168,7 @@ public class Processor {
         return memory;
     }
 
-    public byte[] getvRegisters() {
+    public byte[] getVRegisters() {
         return vRegisters;
     }
 
@@ -169,12 +180,22 @@ public class Processor {
         return programCounter;
     }
 
-    public int[] getStack() {
-        return stack;
+
+    public byte getST() {
+        return ST;
     }
 
-    public int getStackPointer() {
-        return stackPointer;
+    public void setST(byte ST) {
+        this.ST = ST;
+    }
+
+    public byte getDT() {
+        return DT;
+    }
+
+
+    public void setDT(byte DT) {
+        this.DT = DT;
     }
 
     public void setProgramCounter (int value) {

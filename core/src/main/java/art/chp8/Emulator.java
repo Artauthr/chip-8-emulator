@@ -1,36 +1,41 @@
 package art.chp8;
 
 import com.badlogic.gdx.ApplicationAdapter;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.ScreenUtils;
 
-/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Emulator extends ApplicationAdapter {
-    private Graphics graphics;
+    private Renderer renderer;
+    private Processor processor;
 
-    private final boolean[][] pixels = new boolean[Processor.SCREEN_WIDTH][Processor.SCREEN_HEIGHT];
+    private float counter;
+
     @Override
     public void create() {
-        graphics = new Graphics();
-
-        pixels[0][0] = true;
+        renderer = new Renderer();
+        processor = new Processor();
     }
 
     @Override
     public void render() {
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
-        graphics.drawGrid(pixels);
+        ScreenUtils.clear(0f, 0f, 0f, 1f);
+
+        counter += Gdx.graphics.getDeltaTime();
+        if (counter >= 0.001f) {
+            processor.tick();
+            counter = 0;
+        }
+        renderer.drawGrid(processor.getPixels());
     }
 
     @Override
     public void dispose() {
-        graphics.dispose();
+        renderer.dispose();
     }
 
     @Override
     public void resize(int width, int height) {
         super.resize(width, height);
-        graphics.onResize(width, height);
+        renderer.onResize(width, height);
     }
 }
