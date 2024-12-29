@@ -2,13 +2,14 @@ package art.chp8;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.utils.ScreenUtils;
 
 public class Emulator extends ApplicationAdapter {
     private Renderer renderer;
     private Processor processor;
 
-    private float counter;
+    private static final float UPDATE_MS = 1 / 60f; // 60hz, can be changed to anything
+
+    private float tickCounter;
 
     @Override
     public void create() {
@@ -16,18 +17,14 @@ public class Emulator extends ApplicationAdapter {
         processor = new Processor();
     }
 
-    private static final float UPDATE_MS = 1 / 60f;
-
     @Override
-    public void render() {
-        ScreenUtils.clear(0f, 0f, 0f, 1f);
-
-        counter += Gdx.graphics.getDeltaTime();
-        if (counter >= 0) {
+    public void render () {
+        tickCounter += Gdx.graphics.getDeltaTime();
+        if (tickCounter >= UPDATE_MS) {
             processor.tick();
-            counter = 0;
+            tickCounter = 0;
         }
-        renderer.drawGrid(processor.getPixels());
+        renderer.draw(processor.getPixels());
     }
 
     @Override

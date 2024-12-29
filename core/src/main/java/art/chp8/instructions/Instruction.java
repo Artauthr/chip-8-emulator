@@ -27,6 +27,8 @@ public enum Instruction {
                 int pop = processor.popStack();
                 processor.setProgramCounter(pop);
                 break;
+            default:
+                throw new UnsupportedOperationException("Operation not found: " + Integer.toHexString(opcode));
         }
     }),
 
@@ -257,13 +259,16 @@ public enum Instruction {
         byte key = vRegisters[Decoder.Vx(opcode)];
 
         int type = Decoder.kk(opcode);
+        Keypad keypad = processor.getKeypad();
         switch (type) {
             case 0x9E: // Ex9E - SKP Vx. Skip next instruction if key with the value of Vx is pressed.
-                if (processor.isKeyDown(key)) processor.skipNextInstruction();
+                if (keypad.isKeyDown(key)) processor.skipNextInstruction();
                 break;
             case 0xA1: // ExA1 - SKNP Vx. Skip next instruction if key with the value of Vx is not pressed.
-                if (!processor.isKeyDown(key)) processor.skipNextInstruction();
+                if (!keypad.isKeyDown(key)) processor.skipNextInstruction();
                 break;
+            default:
+                throw new UnsupportedOperationException("Operation not found: " + Integer.toHexString(opcode));
         }
     }),
 
@@ -328,6 +333,8 @@ public enum Instruction {
                     vRegisters[i] = processor.readMemory(indexRegister + i);
                 }
                 break;
+            default:
+                throw new UnsupportedOperationException("Operation not found: " + Integer.toHexString(opcode));
         }
     })
     ;
@@ -353,7 +360,7 @@ public enum Instruction {
         Instruction instruction = codeMap.get(op);
 
         if (instruction == null) {
-            throw new RuntimeException("Unknown opcode " + opcode);
+            throw new UnsupportedOperationException("Unknown opcode " + opcode);
         }
 
         return instruction;

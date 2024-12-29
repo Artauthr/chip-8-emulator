@@ -20,7 +20,7 @@ public class Processor {
     /*
     64x32 pixel display
     */
-    private final boolean[][] pixels = new boolean[64][32];
+    private final boolean[][] pixels = new boolean[SCREEN_WIDTH][SCREEN_HEIGHT];
 
     /*
     Total memory (4KB in size)
@@ -71,14 +71,11 @@ public class Processor {
     }
 
     public Processor() {
-        keypad = new Keypad();
         programCounter = START_ADDRESS;
         loadInternalFonts();
-        loadROM("tetris");
-    }
 
-    public boolean isKeyDown (int keycode) {
-        return keypad.isKeyDown(keycode);
+        keypad = new Keypad();
+        loadROM("tetris");
     }
 
     public void tick () {

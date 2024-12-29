@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.Disposable;
+import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class Renderer implements Disposable {
@@ -13,7 +14,7 @@ public class Renderer implements Disposable {
     private static final int SCREEN_W = 64;
     private static final int SCREEN_H = 32;
 
-    private static final int UNITS_PER_PIXEL = 128;
+    private static final int UNITS_PER_PIXEL = 2;
 
     public Renderer() {
         shapeRenderer = new ShapeRenderer();
@@ -35,7 +36,9 @@ public class Renderer implements Disposable {
         viewport.setUnitsPerPixel(1);
     }
 
-    public void drawGrid (boolean[][] grid) {
+    public void draw(boolean[][] grid) {
+        ScreenUtils.clear(0f, 0f, 0f, 1f);
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         shapeRenderer.setProjectionMatrix(viewport.getCamera().combined);
