@@ -66,10 +66,6 @@ public class Processor {
 
     private final Keypad keypad;
 
-    public Keypad getKeypad () {
-        return this.keypad;
-    }
-
     public Processor() {
         programCounter = START_ADDRESS;
         loadInternalFonts();
@@ -218,5 +214,9 @@ public class Processor {
 
     public void setProgramCounter (int value) {
         this.programCounter = value;
+    }
+
+    public Keypad getKeypad () {
+        return this.keypad;
     }
 }
